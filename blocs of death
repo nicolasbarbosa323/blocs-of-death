@@ -1,0 +1,360 @@
+local player = game.Players.LocalPlayer
+local userInput = game:GetService("UserInputService")
+local mouse = player:GetMouse()
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local originalCFrame = humanoidRootPart.CFrame -- Posição original do personagem
+local soundIds = {
+    "rbxassetid://399953818",
+    "rbxassetid://8490606735",
+    "rbxassetid://17593207303",
+    "rbxassetid://5693336619",
+    "rbxassetid://6882766712"
+}
+
+local blocks = {}
+
+local function spawnGiantBlocks()
+    -- Apagar blocos anteriores, se existirem
+    for _, block in pairs(blocks) do
+        if block and block.Parent then
+            block:Destroy()
+        end
+    end
+    table.clear(blocks)
+
+    -- Criar 5 blocos quadrados
+    for i = 1, 5 do
+        local block = Instance.new("Part")
+        block.Size = Vector3.new(6, 6, 6) -- Tamanho menor e quadrado dos blocos
+        block.Position = humanoidRootPart.Position - Vector3.new(0, 5, 0) - Vector3.new(i * 6, 0, 0) -- Coloca atrás de você
+        block.Anchored = false
+        block.Color = Color3.fromRGB(150, 150, 150)
+        block.Material = Enum.Material.SmoothPlastic
+        block.CanCollide = false
+        block.Parent = workspace
+
+        table.insert(blocks, block)
+    end
+
+    -- Girar os blocos enquanto flutuam atrás de você
+    local rotateSpeed = 2 -- Velocidade de rotação
+    local moveSpeed = 10 -- Velocidade de movimento
+
+    -- Movimentar os blocos com tudo após 2 segundos
+    wait(2)
+
+    local function moveBlocks()
+        -- Movimento em direção ao jogador
+        for _, block in pairs(blocks) do
+            local direction = (humanoidRootPart.Position - block.Position).unit -- Direção em direção ao jogador
+            local targetPos = humanoidRootPart.Position + direction * 20 -- Deslizar para mais perto do jogador
+
+            -- Movimento suave até a posição alvo
+            while (block.Position - humanoidRootPart.Position).Magnitude > 1 do
+                block.CFrame = block.CFrame * CFrame.Angles(0, math.rad(rotateSpeed), 0) -- Girar o bloco
+                block.CFrame = CFrame.new(block.Position, targetPos) -- Deslizar o bloco em direção ao jogador
+                wait(0.03) -- Delay para suavizar o movimento
+            end
+        end
+    end
+
+    -- Iniciar o movimento e rotação dos blocos
+    moveBlocks()
+
+    -- Detectar colisão com os jogadores para matar ao toque
+    for _, block in pairs(blocks) do
+        block.Touched:Connect(function(hit)
+            local touchedCharacter = hit.Parent
+            if touchedCharacter and touchedCharacter:FindFirstChild("Humanoid") then
+                local touchedPlayer = game.Players:GetPlayerFromCharacter(touchedCharacter)
+                -- Verificar se não foi o próprio jogador tocando
+                if touchedPlayer and touchedPlayer ~= player then
+                    -- Matar o jogador tocado
+                    touchedCharacter.Humanoid.Health = 0
+
+                    -- Tocar som aleatório
+                    local randomSoundId = soundIds[math.random(1, #soundIds)]
+                    local sound = Instance.new("Sound")
+                    sound.SoundId = randomSoundId
+                    sound.Parent = block
+                    sound:Play()
+                end
+            end
+        end)
+    end
+end
+
+-- Função para fazer os blocos subirem, ficarem gigantes, atacarem e voltarem
+local function zKeyFunction()
+    -- Subir os blocos
+    for _, block in pairs(blocks) do
+        block.Position = block.Position + Vector3.new(0, 50, 0) -- Subir 50 studs
+    end
+
+    -- Esperar um pouco e tornar os blocos gigantes
+    wait(0.5) -- Espera para o efeito de subida
+
+    for _, block in pairs(blocks) do
+        block.Size = Vector3.new(20, 20, 20) -- Tornar os blocos gigantes
+    end
+
+    -- Atacar todos os jogadores ao redor com os blocos gigantes
+    for _, block in pairs(blocks) do
+        block.Touched:Connect(function(hit)
+            local touchedCharacter = hit.Parent
+            if touchedCharacter and touchedCharacter:FindFirstChild("Humanoid") then
+                local touchedPlayer = game.Players:GetPlayerFromCharacter(touchedCharacter)
+                -- Verificar se não foi o próprio jogador tocando
+                if touchedPlayer and touchedPlayer ~= player then
+                    -- Matar o jogador tocado
+                    touchedCharacter.Humanoid.Health = 0
+
+                    -- Tocar som aleatório
+                    local randomSoundId = soundIds[math.random(1, #soundIds)]
+                    local sound = Instance.new("Sound")
+                    sound.SoundId = randomSoundId
+                    sound.Parent = block
+                    sound:Play()
+                end
+            end
+        end)
+    end
+
+    -- Esperar 1 segundo e depois reduzir o tamanho dos blocos
+    wait(1)
+
+    -- Voltar os blocos ao tamanho original e fazê-los orbitarem novamente
+    for _, block in pairs(blocks) do
+        block.Size = Vector3.new(6, 6, 6) -- Voltar ao tamanho normal
+    end
+
+    -- Colocar os blocos orbitando novamente
+    spawnGiantBlocks()
+end
+
+-- Função para matar todos os jogadores, exceto você, e tocar som
+local function xKeyFunction()
+    -- Matar todos os jogadores (exceto o próprio jogador)
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Humanoid") then
+            local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid.Health > 0 then
+                humanoid.Health = 0 -- Matar o jogador
+            end
+        end
+    end
+
+    -- Tocar som aleatório
+    local randomSoundId = soundIds[math.random(1, #soundIds)]
+    local sound = Instance.new("Sound")
+    sound.SoundId = randomSoundId
+    sound.Parent = workspace
+    sound:Play()
+end
+
+-- Fazer o personagem olhar para o mouse enquanto a tecla Q estiver pressionada
+userInput.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode.Q then
+            -- Criar os blocos quadrados
+            spawnGiantBlocks()
+
+            -- Fazer o personagem olhar para o mouse
+            while userInput:IsKeyDown(Enum.KeyCode.Q) do
+                local targetLookAt = mouse.Hit.p
+                humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, targetLookAt)
+                wait(0.1) -- Atualizar direção a cada 0.1 segundo
+            end
+
+            -- Voltar para a direção original depois de soltar a tecla Q
+            humanoidRootPart.CFrame = originalCFrame
+        end
+
+        if input.KeyCode == Enum.KeyCode.Z then
+            -- Ativar a função para a tecla Z
+            zKeyFunction()
+        end
+
+        if input.KeyCode == Enum.KeyCode.X then
+            -- Ativar a função para a tecla X (matar todos os jogadores, exceto o próprio)
+            xKeyFunction()
+        end
+    end
+end)
+
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local userInput = game:GetService("UserInputService")
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local numBlocks = 10
+local baseRadius = 5.3
+local orbitBaseSpeed = 2 -- velocidade normal
+local orbitSpeed = orbitBaseSpeed
+
+local soundIds = {
+    "rbxassetid://399953818",
+    "rbxassetid://8490606735",
+    "rbxassetid://17593207303",
+    "rbxassetid://5693336619",
+    "rbxassetid://6882766712"
+}
+
+local blocks = {}
+local musicSound
+local vibrationAmount = 0
+
+-- Criar bloco de suporte ritual
+local supportBlock = Instance.new("Part")
+supportBlock.Size = Vector3.new(8, 1, 8)
+supportBlock.Position = humanoidRootPart.Position - Vector3.new(0, 3, 0)
+supportBlock.Anchored = true
+supportBlock.Color = Color3.fromRGB(100, 100, 100)
+supportBlock.Material = Enum.Material.Neon
+supportBlock.CanCollide = false
+supportBlock.Parent = workspace
+
+local decal = Instance.new("Decal")
+decal.Texture = "rbxassetid://1022777" -- pode mudar para outro ritual
+decal.Face = Enum.NormalId.Top
+decal.Parent = supportBlock
+
+-- Criar mini blocos
+for i = 1, numBlocks do
+    local block = Instance.new("Part")
+    block.Size = Vector3.new(0.8, 0.8, 0.8)
+    block.Anchored = true
+    block.Color = Color3.fromRGB(150, 150, 150)
+    block.Material = Enum.Material.SmoothPlastic
+    block.CanCollide = true
+    block.Parent = workspace
+
+    table.insert(blocks, {
+        part = block,
+        offsetAngle = math.rad((360 / numBlocks) * i),
+        radius = baseRadius,
+    })
+
+    block.Touched:Connect(function(hit)
+        local touchedCharacter = hit.Parent
+        if touchedCharacter and touchedCharacter:FindFirstChild("Humanoid") then
+            local touchedPlayer = game.Players:GetPlayerFromCharacter(touchedCharacter)
+            -- Verificar se não foi o próprio jogador tocando
+            if touchedPlayer and touchedPlayer ~= player then
+                touchedCharacter.Humanoid.Health = 0
+
+                -- Tocar som aleatório
+                local randomSoundId = soundIds[math.random(1, #soundIds)]
+                local sound = Instance.new("Sound")
+                sound.SoundId = randomSoundId
+                sound.Parent = block
+                sound:Play()
+            end
+        end
+    end)
+end
+
+-- Atualizar mini blocos orbitando com batida real
+spawn(function()
+    while true do
+        if humanoidRootPart and humanoidRootPart.Parent then
+            local center = humanoidRootPart.Position
+            local timeNow = tick() * orbitSpeed
+
+            local extraRadius = 0
+            local extraSpeed = 0
+            if musicSound and musicSound.IsPlaying then
+                local loudness = musicSound.PlaybackLoudness
+                extraRadius = math.clamp(loudness / 80, 0, 5) -- mais loudness = mais afastados
+                extraSpeed = math.clamp(loudness / 300, 0, 5) -- mais loudness = mais rápido
+            end
+
+            orbitSpeed = orbitBaseSpeed + extraSpeed
+
+            for _, data in pairs(blocks) do
+                local angle = data.offsetAngle + timeNow
+                local x = math.cos(angle) * (data.radius + extraRadius)
+                local z = math.sin(angle) * (data.radius + extraRadius)
+                local y = -1
+
+                data.part.Position = center + Vector3.new(x, y, z)
+            end
+        end
+        wait(0.03)
+    end
+end)
+
+-- Atualizar bloco de suporte ritual seguindo você
+spawn(function()
+    local targetY = humanoidRootPart.Position.Y - 4
+    while true do
+        if humanoidRootPart and humanoidRootPart.Parent then
+            local playerPos = humanoidRootPart.Position
+            targetY = playerPos.Y - 4
+            local currentPos = supportBlock.Position
+            local newY = currentPos.Y + (targetY - currentPos.Y) * 0.1
+            supportBlock.Position = Vector3.new(playerPos.X, newY, playerPos.Z)
+        end
+        wait(0.03)
+    end
+end)
+
+-- Respawn no ritual
+humanoid.Died:Connect(function()
+    player.CharacterAdded:Wait()
+    character = player.Character
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid")
+    character:WaitForChild("HumanoidRootPart").CFrame = supportBlock.CFrame + Vector3.new(0, 5, 0)
+end)
+
+-- Criar TextBox para inserir ID da música
+local function createMusicBox()
+    local screenGui = Instance.new("ScreenGui", playerGui)
+    screenGui.Name = "MusicBoxGui"
+
+    local textBox = Instance.new("TextBox", screenGui)
+    textBox.Size = UDim2.new(0, 300, 0, 50)
+    textBox.Position = UDim2.new(0.5, -150, 0.4, 0)
+    textBox.PlaceholderText = "Digite o ID da Música e pressione ENTER"
+    textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    textBox.TextColor3 = Color3.new(1, 1, 1)
+    textBox.Font = Enum.Font.GothamBold
+    textBox.TextSize = 20
+    textBox.ClearTextOnFocus = false
+
+    textBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local id = textBox.Text
+            if id and id ~= "" then
+                if musicSound then
+                    musicSound:Destroy()
+                end
+                musicSound = Instance.new("Sound", humanoidRootPart)
+                musicSound.SoundId = "rbxassetid://"..id
+                musicSound.Looped = true
+                musicSound.Volume = 2
+                musicSound:Play()
+            end
+            screenGui:Destroy()
+        end
+    end)
+end
+
+-- Pressionar P para abrir caixa de música
+userInput.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode.P then
+            if not playerGui:FindFirstChild("MusicBoxGui") then
+                createMusicBox()
+            end
+        end
+    end
+end)
